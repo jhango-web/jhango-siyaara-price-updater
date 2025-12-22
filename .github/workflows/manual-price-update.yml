@@ -1,0 +1,135 @@
+name: Manual Price Update
+
+# Only runs when manually triggered with inputs
+on:
+  workflow_dispatch:
+    inputs:
+      gold_rate:
+        description: 'Gold rate per gram (in rupees)'
+        required: true
+        type: number
+      silver_rate:
+        description: 'Silver rate per gram (in rupees)'
+        required: true
+        type: number
+      making_charges:
+        description: 'Making charges (optional, will use theme settings if not provided)'
+        required: false
+        type: number
+      markup_percentage:
+        description: 'Markup percentage (optional, will use theme settings if not provided)'
+        required: false
+        type: number
+      dry_run:
+        description: 'Dry run (simulate without making actual changes)'
+        required: false
+        type: boolean
+        default: false
+      skip_metafields:
+        description: 'Skip updating metafields (only update prices)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  update-prices:
+    name: Manual Update Product Prices
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Validate inputs
+        run: |
+          echo "Gold Rate: ${{ inputs.gold_rate }}"
+          echo "Silver Rate: ${{ inputs.silver_rate }}"
+          echo "Dry Run: ${{ inputs.dry_run }}"
+          echo "Skip Metafields: ${{ inputs.skip_metafields }}"
+
+          # Validate rates are positive
+          if (( $(echo "${{ inputs.gold_rate }} <= 0" | bc -l) )); then
+            echo "::error::Gold rate must be positive"
+            exit 1
+          fi
+
+          if (( $(echo "${{ inputs.silver_rate }} <= 0" | bc -l) )); then
+            echo "::error::Silver rate must be positive"
+            exit 1
+          fi
+
+      - name: Run manual price updater
+        run: |
+          cd scripts
+
+          # Build command with required arguments
+          CMD="python price_updater.py \
+            --shop-url \"${{ secrets.SHOPIFY_SHOP_URL }}\" \
+            --access-token \"${{ secrets.SHOPIFY_ACCESS_TOKEN }}\" \
+            --theme-id \"${{ secrets.SHOPIFY_THEME_ID }}\" \
+            --gold-rate ${{ inputs.gold_rate }} \
+            --silver-rate ${{ inputs.silver_rate }}"
+
+          # Add optional arguments
+          if [ -n "${{ inputs.making_charges }}" ]; then
+            CMD="$CMD --making-charges ${{ inputs.making_charges }}"
+          fi
+
+          if [ -n "${{ inputs.markup_percentage }}" ]; then
+            CMD="$CMD --markup-percentage ${{ inputs.markup_percentage }}"
+          fi
+
+          if [ "${{ inputs.dry_run }}" == "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+
+          if [ "${{ inputs.skip_metafields }}" == "true" ]; then
+            CMD="$CMD --skip-metafields"
+          fi
+
+          # Execute command
+          eval $CMD
+
+      - name: Upload statistics artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manual-price-update-stats-${{ github.run_number }}
+          path: scripts/price_update_stats_*.json
+          retention-days: 90
+
+      - name: Upload logs artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manual-price-update-logs-${{ github.run_number }}
+          path: scripts/price_update_*.log
+          retention-days: 90
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Price Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Gold Rate**: ₹${{ inputs.gold_rate }}/g" >> $GITHUB_STEP_SUMMARY
+          echo "- **Silver Rate**: ₹${{ inputs.silver_rate }}/g" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run**: ${{ inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Skip Metafields**: ${{ inputs.skip_metafields }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check artifacts for detailed logs and statistics." >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Manual price update failed. Check the logs for details."
+          exit 1

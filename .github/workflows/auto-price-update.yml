@@ -1,0 +1,61 @@
+name: Automatic Price Update
+
+# Runs daily at 9:00 AM IST (3:30 AM UTC)
+on:
+  schedule:
+    - cron: '30 3 * * *'
+
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  update-prices:
+    name: Update Product Prices
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Run automatic price updater
+        env:
+          GOLDAPI_KEY: ${{ secrets.GOLDAPI_KEY }}
+          SHOPIFY_SHOP_URL: ${{ secrets.SHOPIFY_SHOP_URL }}
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          SHOPIFY_THEME_ID: ${{ secrets.SHOPIFY_THEME_ID }}
+          CURRENCY: ${{ vars.CURRENCY || 'INR' }}
+        run: |
+          cd scripts
+          python auto_price_updater.py
+
+      - name: Upload summary artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: price-update-summary-${{ github.run_number }}
+          path: scripts/price_update_summary.json
+          retention-days: 30
+
+      - name: Upload logs artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: price-update-logs-${{ github.run_number }}
+          path: scripts/price_update_*.log
+          retention-days: 30
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Price update failed. Check the logs for details."
+          exit 1

@@ -1,0 +1,202 @@
+JHANGO-SIYAARA-GITHUB/
+│
+├── .github/
+│   └── workflows/
+│       ├── auto-price-update.yml          # Automatic daily price updates (9:00 AM IST)
+│       └── manual-price-update.yml        # Manual price updates with form inputs
+│
+├── scripts/
+│   ├── price_calculator.py                # Core price calculation logic
+│   ├── shopify_client.py                  # Shopify API client
+│   ├── goldapi_client.py                  # GoldAPI.io client
+│   ├── price_updater.py                   # Manual update script (CLI)
+│   ├── auto_price_updater.py              # Automatic update script (GitHub Actions)
+│   └── requirements.txt                   # Python dependencies (requests)
+│
+├── tests/
+│   └── test_price_calculator.py           # Unit tests for price calculator
+│
+├── README.md                              # Main documentation
+├── SETUP_GUIDE.md                         # Step-by-step setup instructions
+├── QUICK_REFERENCE.md                     # Quick reference guide
+├── CHANGELOG.md                           # Version history and future plans
+├── DEPLOYMENT_SUMMARY.md                  # Deployment guide and checklist
+├── LICENSE                                # Proprietary license
+├── .gitignore                             # Git ignore rules
+├── .env.example                           # Environment variable template
+└── PROJECT_STRUCTURE.txt                  # This file
+
+═══════════════════════════════════════════════════════════════════════════════
+
+FILE PURPOSES:
+
+WORKFLOWS:
+  auto-price-update.yml      - Scheduled daily at 9:00 AM IST, fetches live rates
+  manual-price-update.yml    - On-demand updates with custom rates
+
+CORE SCRIPTS:
+  price_calculator.py        - Exact price calculation logic from product splitter
+                              - Handles metal costs, stone costs, markup, GST
+                              - Supports all gold purities and silver 925
+
+  shopify_client.py         - Shopify API integration
+                              - Product/variant fetching
+                              - Metafield updates
+                              - Theme settings management
+                              - Price updates
+
+  goldapi_client.py         - GoldAPI.io integration
+                              - Fetches live 24K gold prices
+                              - Fetches live 925 silver prices
+                              - Validates rates (must be > 0)
+
+  price_updater.py          - Manual update script
+                              - CLI interface
+                              - Dry-run mode support
+                              - Detailed logging
+
+  auto_price_updater.py     - Automatic update orchestrator
+                              - Combines GoldAPI + Shopify + Calculator
+                              - Error handling and validation
+                              - Statistics generation
+
+DOCUMENTATION:
+  README.md                 - Overview, features, how it works
+  SETUP_GUIDE.md            - Step-by-step setup (get tokens, configure secrets)
+  QUICK_REFERENCE.md        - Quick commands, formulas, troubleshooting
+  CHANGELOG.md              - Version history and planned features
+  DEPLOYMENT_SUMMARY.md     - Technical specs, deployment checklist
+
+TESTING:
+  test_price_calculator.py  - Unit tests for all price calculations
+                              - Tests all metal types
+                              - Tests with/without stones
+                              - Edge case handling
+
+CONFIGURATION:
+  .gitignore                - Excludes logs, env files, secrets
+  .env.example              - Template for local development
+  requirements.txt          - Python dependencies
+
+═══════════════════════════════════════════════════════════════════════════════
+
+KEY FEATURES:
+
+✅ AUTOMATIC UPDATES
+  - Daily at 9:00 AM IST (3:30 AM UTC)
+  - Fetches live gold (24K) and silver (925) prices
+  - Updates theme settings
+  - Updates product metafields
+  - Recalculates all variant prices
+
+✅ MANUAL UPDATES
+  - On-demand via GitHub Actions UI
+  - Custom gold/silver rates
+  - Optional overrides for making charges and markup
+  - Dry-run mode for testing
+  - Skip metafields option
+
+✅ PRICE CALCULATION
+  - Metal cost: weight × rate × purity_factor
+  - Stone cost: Σ(carat × price_per_carat)
+  - Making charges from theme settings
+  - Markup percentage from theme settings
+  - Laser cost: Always ₹0
+  - Packaging cost: Always ₹0
+  - GST: 3% fixed
+  - Rates from product metafields (jhango.gold_rate, jhango.silver_rate)
+
+✅ SAFETY & VALIDATION
+  - Rate validation (must be > 0)
+  - Abort on invalid API responses
+  - Product filtering (only products with metafields)
+  - Variant skipping (no metal weight = skip)
+  - Price change detection (only update if different)
+  - Comprehensive error handling
+  - Detailed logging
+
+✅ SECURITY
+  - All secrets in GitHub Secrets (encrypted)
+  - No hardcoded credentials
+  - Secrets never logged
+  - Private repository support
+  - API token permission scoping
+
+═══════════════════════════════════════════════════════════════════════════════
+
+SETUP REQUIREMENTS:
+
+1. SHOPIFY CREDENTIALS
+   - Shop URL: yourstore.myshopify.com
+   - Access Token: shpat_xxxxx (with read/write products and themes)
+   - Theme ID: 143345254460 (or your theme ID)
+
+2. GOLDAPI CREDENTIALS
+   - API Key: goldapi-xxxxx
+   - Free or paid tier
+
+3. GITHUB REPOSITORY
+   - Public or private repository
+   - Secrets configured
+   - Actions enabled
+
+═══════════════════════════════════════════════════════════════════════════════
+
+WORKFLOW EXECUTION:
+
+AUTOMATIC (Daily):
+  1. Trigger: Cron schedule (9:00 AM IST)
+  2. Fetch rates from GoldAPI.io
+  3. Validate rates (> 0)
+  4. Update theme settings
+  5. Fetch products with metafields
+  6. For each product:
+     - Update product metafields (gold_rate, silver_rate)
+     - For each variant:
+       * Fetch variant metafields (metal_weight, stones)
+       * Calculate new price
+       * Update variant price
+  7. Generate statistics
+  8. Save logs and artifacts
+
+MANUAL (On-demand):
+  1. Trigger: GitHub Actions UI
+  2. User provides rates
+  3. Fetch theme settings (or use overrides)
+  4. Update theme settings (unless skip_metafields)
+  5. Fetch products with metafields
+  6. For each product:
+     - Update product metafields (unless skip_metafields)
+     - For each variant:
+       * Calculate new price
+       * Update variant price (unless dry_run)
+  7. Generate statistics
+  8. Save logs and artifacts
+
+═══════════════════════════════════════════════════════════════════════════════
+
+MONITORING:
+
+- GitHub Actions tab shows workflow runs
+- Green checkmark = success
+- Red X = failure
+- Download artifacts for detailed logs and statistics
+- Email notifications on failures (if enabled)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+NEXT STEPS:
+
+1. Upload this folder to GitHub repository
+2. Configure GitHub Secrets (4 required)
+3. Enable GitHub Actions
+4. Test with dry-run manual workflow
+5. Verify automatic schedule
+6. Monitor first few runs
+7. Enjoy automated price updates!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Version: 1.0.0
+Created: 2024-12-21
+Status: Ready for Production

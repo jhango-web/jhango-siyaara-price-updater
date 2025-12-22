@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+price_update_*.log
+price_update_stats_*.json
+price_update_summary.json
+
+# CRITICAL: Secrets and credentials (PUBLIC REPOSITORY!)
+.env
+.env.*
+!.env.example
+*.env
+secrets.json
+secrets.yml
+secrets.yaml
+config/secrets.json
+credentials.json
+*.key
+*.pem
+*-key.json
+service-account*.json
+
+# API keys and tokens
+*api-key*
+*apikey*
+*api_key*
+*access-token*
+*access_token*
+*shopify-token*
+*goldapi*
+*shpat_*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+test_output/
