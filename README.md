@@ -19,6 +19,7 @@ Automatic and manual price update system for Shopify jewelry products based on l
 - **Manual Updates**: Trigger price updates with custom gold/silver rates via GitHub Actions interface
 - **Exact Price Calculation**: Replicates the exact pricing logic from your product listing system
 - **Metafield Management**: Updates product metafields (`jhango.gold_rate` and `jhango.silver_rate`) and theme settings
+- **Email Reports**: Detailed HTML email reports after every run with complete product-level changes (supports unlimited products!)
 - **Safe & Validated**: Comprehensive error handling, validation, and dry-run mode for testing
 - **Detailed Logging**: Complete audit trail with statistics and logs saved as artifacts
 
@@ -52,8 +53,13 @@ Add the following secrets (click "New repository secret" for each):
 | `SHOPIFY_SHOP_URL` | Your Shopify store URL | `yourstore.myshopify.com` |
 | `SHOPIFY_ACCESS_TOKEN` | Shopify Admin API access token | `shpat_xxxxxx` |
 | `SHOPIFY_THEME_ID` | Your theme ID for settings | `143345254460` |
+| `SENDER_EMAIL` | Email address to send reports from | `your-email@gmail.com` |
+| `SENDER_PASSWORD` | App password for sender email | `xxxx xxxx xxxx xxxx` |
+| `RECIPIENT_EMAIL` | Email address to receive reports | `recipient@example.com` |
 
 **Note**: The "Example Format" column shows the format, not actual values. Use your real credentials when adding secrets.
+
+**📧 Email Setup**: See [EMAIL_SETUP.md](EMAIL_SETUP.md) for detailed instructions on configuring email reporting.
 
 ### 3. Configure GitHub Variables (Optional)
 
