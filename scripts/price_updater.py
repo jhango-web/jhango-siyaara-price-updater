@@ -50,6 +50,7 @@ class PriceUpdater:
             'metafields_failed': 0,
             'errors': []
         }
+        self.products_details = []  # Detailed product change log
 
     def update_prices(self, gold_rate: float, silver_rate: float,
                      update_metafields: bool = True, dry_run: bool = False) -> Dict[str, Any]:
@@ -111,6 +112,9 @@ class PriceUpdater:
         logger.info(f"Errors: {len(self.stats['errors'])}")
         logger.info("="*80)
 
+        # Add detailed product log to stats
+        self.stats['products_details'] = self.products_details
+
         return self.stats
 
     def _process_product(self, product: Dict[str, Any], gold_rate: float, silver_rate: float,
@@ -121,46 +125,76 @@ class PriceUpdater:
 
         logger.info(f"\nProcessing product: {product_handle} (ID: {product_id})")
 
-        # Update product metafields if requested
-        if update_metafields:
-            logger.info(f"  Updating metafields with new rates")
+        # Initialize product details tracking
+        product_detail = {
+            'handle': product_handle,
+            'product_id': product_id,
+            'status': 'success',
+            'variants': []
+        }
 
-            if not dry_run:
-                # Update gold_rate metafield
-                success_gold = self.client.update_product_metafield(
-                    product_id, 'jhango', 'gold_rate',
-                    str(gold_rate), 'number_decimal'
-                )
+        try:
+            # Update product metafields if requested
+            if update_metafields:
+                logger.info(f"  Updating metafields with new rates")
 
-                # Update silver_rate metafield
-                success_silver = self.client.update_product_metafield(
-                    product_id, 'jhango', 'silver_rate',
-                    str(silver_rate), 'number_decimal'
-                )
+                if not dry_run:
+                    # Update gold_rate metafield
+                    success_gold = self.client.update_product_metafield(
+                        product_id, 'jhango', 'gold_rate',
+                        str(gold_rate), 'number_decimal'
+                    )
 
-                if success_gold and success_silver:
-                    self.stats['metafields_updated'] += 2
-                    logger.info(f"  ✓ Updated metafields")
+                    # Update silver_rate metafield
+                    success_silver = self.client.update_product_metafield(
+                        product_id, 'jhango', 'silver_rate',
+                        str(silver_rate), 'number_decimal'
+                    )
+
+                    if success_gold and success_silver:
+                        self.stats['metafields_updated'] += 2
+                        logger.info(f"  ✓ Updated metafields")
+                    else:
+                        self.stats['metafields_failed'] += (0 if success_gold else 1) + (0 if success_silver else 1)
+                        logger.warning(f"  ✗ Failed to update some metafields")
+                        product_detail['status'] = 'partial'
                 else:
-                    self.stats['metafields_failed'] += (0 if success_gold else 1) + (0 if success_silver else 1)
-                    logger.warning(f"  ✗ Failed to update some metafields")
-            else:
-                logger.info(f"  [DRY RUN] Would update metafields")
+                    logger.info(f"  [DRY RUN] Would update metafields")
 
-        # Process variants
-        variants = product.get('variants', [])
-        logger.info(f"  Processing {len(variants)} variants")
+            # Process variants
+            variants = product.get('variants', [])
+            logger.info(f"  Processing {len(variants)} variants")
 
-        for variant in variants:
-            self._process_variant(product, variant, gold_rate, silver_rate, dry_run)
+            for variant in variants:
+                variant_detail = self._process_variant(product, variant, gold_rate, silver_rate, dry_run)
+                if variant_detail:
+                    product_detail['variants'].append(variant_detail)
 
-        self.stats['products_processed'] += 1
+            self.stats['products_processed'] += 1
+
+        except Exception as e:
+            product_detail['status'] = 'failed'
+            error_msg = f"Error in product {product_handle}: {str(e)}"
+            self.stats['errors'].append(error_msg)
+            logger.error(f"  ✗ {error_msg}")
+
+        # Add product details to tracking
+        self.products_details.append(product_detail)
 
     def _process_variant(self, product: Dict[str, Any], variant: Dict[str, Any],
-                        gold_rate: float, silver_rate: float, dry_run: bool):
-        """Process a single variant and update its price."""
+                        gold_rate: float, silver_rate: float, dry_run: bool) -> Optional[Dict[str, Any]]:
+        """Process a single variant and update its price. Returns variant detail dict."""
         variant_id = variant['id']
         option1 = variant.get('option1', '')
+
+        # Initialize variant detail
+        variant_detail = {
+            'variant_id': variant_id,
+            'option1': option1,
+            'old_price': float(variant.get('price', 0)),
+            'new_price': 0,
+            'status': 'skipped'
+        }
 
         # Fetch variant metafields
         variant_metafields = self.client.get_variant_metafields(variant_id)
@@ -186,7 +220,8 @@ class PriceUpdater:
         if metal_weight <= 0:
             logger.debug(f"    Variant {variant_id}: Skipped (no metal weight)")
             self.stats['variants_skipped'] += 1
-            return
+            variant_detail['status'] = 'skipped_no_weight'
+            return variant_detail
 
         # Calculate new price
         price_result = self.calculator.calculate_price(
@@ -202,10 +237,12 @@ class PriceUpdater:
         if not price_result:
             logger.warning(f"    Variant {variant_id}: Could not calculate price (invalid option: {option1})")
             self.stats['variants_skipped'] += 1
-            return
+            variant_detail['status'] = 'skipped_invalid_metal'
+            return variant_detail
 
         new_price = price_result['total_price']
-        old_price = float(variant.get('price', 0))
+        old_price = variant_detail['old_price']
+        variant_detail['new_price'] = new_price
 
         # Log price breakdown
         logger.info(f"    Variant {variant_id} ({option1})")
@@ -224,16 +261,22 @@ class PriceUpdater:
                 success = self.client.update_variant_price(variant_id, new_price)
                 if success:
                     self.stats['variants_updated'] += 1
+                    variant_detail['status'] = 'updated'
                     logger.info(f"      ✓ Price updated")
                 else:
                     self.stats['variants_failed'] += 1
+                    variant_detail['status'] = 'failed'
                     logger.warning(f"      ✗ Failed to update price")
             else:
                 logger.info(f"      [DRY RUN] Would update price")
                 self.stats['variants_updated'] += 1
+                variant_detail['status'] = 'dry_run'
         else:
             logger.info(f"      No price change needed")
             self.stats['variants_skipped'] += 1
+            variant_detail['status'] = 'no_change'
+
+        return variant_detail
 
     @staticmethod
     def _get_metafield_value(metafields: List[Dict], namespace: str, key: str,

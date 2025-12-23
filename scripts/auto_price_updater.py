@@ -15,6 +15,7 @@ from goldapi_client import GoldAPIClient
 from shopify_client import ShopifyClient
 from price_calculator import PriceCalculator
 from price_updater import PriceUpdater
+from email_reporter import EmailReporter
 
 # Configure logging
 logging.basicConfig(
@@ -41,6 +42,13 @@ def main():
     shopify_theme_id = os.environ.get('SHOPIFY_THEME_ID')
     currency = os.environ.get('CURRENCY', 'INR')
 
+    # Email configuration
+    sender_email = os.environ.get('SENDER_EMAIL')
+    sender_password = os.environ.get('SENDER_PASSWORD')
+    recipient_email = os.environ.get('RECIPIENT_EMAIL')
+    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+
     # Validate required environment variables
     missing_vars = []
     if not goldapi_key:
@@ -51,6 +59,12 @@ def main():
         missing_vars.append('SHOPIFY_ACCESS_TOKEN')
     if not shopify_theme_id:
         missing_vars.append('SHOPIFY_THEME_ID')
+    if not sender_email:
+        missing_vars.append('SENDER_EMAIL')
+    if not sender_password:
+        missing_vars.append('SENDER_PASSWORD')
+    if not recipient_email:
+        missing_vars.append('RECIPIENT_EMAIL')
 
     if missing_vars:
         logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
@@ -151,17 +165,46 @@ def main():
 
         logger.info("="*80)
 
-        # Save summary to file for GitHub Actions artifact
-        summary = {
+        # Prepare report data
+        report_data = {
             'timestamp': datetime.now().isoformat(),
             'gold_rate': gold_rate,
             'silver_rate': silver_rate,
             'currency': currency,
-            'statistics': stats
+            'statistics': stats,
+            'products': stats.get('products_details', []),
+            'errors': stats.get('errors', [])
         }
 
+        # Step 6: Send email report
+        logger.info("\nStep 6: Sending email report")
+        logger.info("-" * 80)
+
+        try:
+            email_reporter = EmailReporter(
+                sender_email=sender_email,
+                sender_password=sender_password,
+                recipient_email=recipient_email,
+                smtp_server=smtp_server,
+                smtp_port=smtp_port
+            )
+
+            is_success = stats['variants_failed'] == 0 and len(stats['errors']) == 0
+
+            email_sent = email_reporter.send_report(report_data, is_success)
+
+            if email_sent:
+                logger.info("✓ Email report sent successfully")
+            else:
+                logger.warning("✗ Failed to send email report (check logs)")
+
+        except Exception as e:
+            logger.error(f"Error sending email report: {e}")
+            # Continue even if email fails
+
+        # Save summary to file for GitHub Actions artifact
         with open('price_update_summary.json', 'w') as f:
-            json.dump(summary, f, indent=2)
+            json.dump(report_data, f, indent=2)
 
         logger.info("\nSummary saved to: price_update_summary.json")
 
@@ -178,7 +221,42 @@ def main():
         logger.error(f"CRITICAL ERROR: {e}")
         logger.error(f"{'='*80}")
         import traceback
-        logger.error(traceback.format_exc())
+        error_trace = traceback.format_exc()
+        logger.error(error_trace)
+
+        # Try to send critical error email
+        try:
+            if sender_email and sender_password and recipient_email:
+                email_reporter = EmailReporter(
+                    sender_email=sender_email,
+                    sender_password=sender_password,
+                    recipient_email=recipient_email,
+                    smtp_server=smtp_server,
+                    smtp_port=smtp_port
+                )
+
+                critical_report = {
+                    'timestamp': datetime.now().isoformat(),
+                    'gold_rate': 0,
+                    'silver_rate': 0,
+                    'currency': currency,
+                    'statistics': {
+                        'products_processed': 0,
+                        'variants_updated': 0,
+                        'variants_skipped': 0,
+                        'variants_failed': 0,
+                        'metafields_updated': 0,
+                        'metafields_failed': 0
+                    },
+                    'products': [],
+                    'errors': [f"CRITICAL ERROR: {str(e)}", error_trace]
+                }
+
+                email_reporter.send_report(critical_report, is_success=False)
+                logger.info("Critical error email sent")
+        except:
+            pass  # Don't fail if email sending fails
+
         sys.exit(1)
 
 

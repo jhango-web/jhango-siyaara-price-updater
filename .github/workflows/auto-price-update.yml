@@ -33,6 +33,11 @@ jobs:
           SHOPIFY_SHOP_URL: ${{ secrets.SHOPIFY_SHOP_URL }}
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
           SHOPIFY_THEME_ID: ${{ secrets.SHOPIFY_THEME_ID }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          SMTP_SERVER: ${{ vars.SMTP_SERVER || 'smtp.gmail.com' }}
+          SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
           CURRENCY: ${{ vars.CURRENCY || 'INR' }}
         run: |
           cd scripts
