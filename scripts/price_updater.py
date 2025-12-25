@@ -15,6 +15,7 @@ from datetime import datetime
 
 from price_calculator import PriceCalculator
 from shopify_client import ShopifyClient
+from email_reporter import EmailReporter
 
 # Configure logging
 logging.basicConfig(
@@ -445,10 +446,55 @@ def main():
 
     # Save stats to JSON file
     stats_file = f'price_update_stats_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+
+    # Prepare report data
+    report_data = {
+        'timestamp': datetime.now().isoformat(),
+        'gold_rate': args.gold_rate,
+        'silver_rate': args.silver_rate,
+        'dry_run': args.dry_run,
+        'skip_metafields': args.skip_metafields,
+        'statistics': stats,
+        'products': stats.get('products_details', []),
+        'errors': stats.get('errors', [])
+    }
+
     with open(stats_file, 'w') as f:
-        json.dump(stats, f, indent=2)
+        json.dump(report_data, f, indent=2)
 
     logger.info(f"\nStatistics saved to: {stats_file}")
+
+    # Send email report if credentials are configured
+    sender_email = os.environ.get('SENDER_EMAIL')
+    sender_password = os.environ.get('SENDER_PASSWORD')
+    recipient_email = os.environ.get('RECIPIENT_EMAIL')
+    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+
+    if sender_email and sender_password and recipient_email:
+        logger.info("\nSending email report...")
+        try:
+            email_reporter = EmailReporter(
+                sender_email=sender_email,
+                sender_password=sender_password,
+                recipient_email=recipient_email,
+                smtp_server=smtp_server,
+                smtp_port=smtp_port
+            )
+
+            is_success = stats['variants_failed'] == 0 and len(stats.get('errors', [])) == 0
+
+            email_sent = email_reporter.send_report(report_data, is_success)
+
+            if email_sent:
+                logger.info("✓ Email report sent successfully")
+            else:
+                logger.warning("✗ Failed to send email report")
+
+        except Exception as e:
+            logger.error(f"Error sending email report: {e}")
+    else:
+        logger.info("\nEmail report skipped (credentials not configured)")
 
     # Exit with error code if there were failures
     if stats['variants_failed'] > 0 or stats['metafields_failed'] > 0 or stats['errors']:
