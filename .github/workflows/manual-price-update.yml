@@ -69,10 +69,8 @@ jobs:
           fi
 
       - name: Run manual price updater
+        working-directory: scripts
         run: |
-          export PYTHONPATH="${PYTHONPATH}:${PWD}/scripts"
-          cd scripts
-
           # Build command with required arguments
           CMD="python price_updater.py \
             --shop-url \"${{ secrets.SHOPIFY_SHOP_URL }}\" \

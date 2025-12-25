@@ -39,10 +39,8 @@ jobs:
           SMTP_SERVER: ${{ vars.SMTP_SERVER || 'smtp.gmail.com' }}
           SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
           CURRENCY: ${{ vars.CURRENCY || 'INR' }}
-        run: |
-          export PYTHONPATH="${PYTHONPATH}:${PWD}/scripts"
-          cd scripts
-          python auto_price_updater.py
+        working-directory: scripts
+        run: python auto_price_updater.py
 
       - name: Upload summary artifact
         if: always()
