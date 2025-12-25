@@ -209,31 +209,54 @@ class PriceUpdater:
         )
 
         # For stone fields, check variant first, then fall back to product
-        stone_types_str = self._get_metafield_value_with_fallback(
+        # These are list metafields - the value is already a JSON string that needs parsing
+        stone_types_value = self._get_metafield_value_with_fallback(
             variant_metafields, product_metafields, 'custom', 'stone_types', '[]', str
         )
-        stone_carats_str = self._get_metafield_value_with_fallback(
+        stone_carats_value = self._get_metafield_value_with_fallback(
             variant_metafields, product_metafields, 'custom', 'stone_carats', '[]', str
         )
-        stone_prices_str = self._get_metafield_value_with_fallback(
+        stone_prices_value = self._get_metafield_value_with_fallback(
             variant_metafields, product_metafields, 'custom', 'stone_prices_per_carat', '[]', str
         )
 
-        # Parse lists
+        # Parse and convert stone data
+        stone_types = []
+        stone_carats = []
+        stone_prices = []
+
         try:
-            stone_types = json.loads(stone_types_str) if stone_types_str else []
-            stone_carats_raw = json.loads(stone_carats_str) if stone_carats_str else []
-            stone_prices_raw = json.loads(stone_prices_str) if stone_prices_str else []
+            # Parse JSON if it's a string, otherwise use directly if already a list
+            if isinstance(stone_types_value, str):
+                stone_types = json.loads(stone_types_value) if stone_types_value else []
+            elif isinstance(stone_types_value, list):
+                stone_types = stone_types_value
+            else:
+                stone_types = []
+
+            if isinstance(stone_carats_value, str):
+                stone_carats_raw = json.loads(stone_carats_value) if stone_carats_value else []
+            elif isinstance(stone_carats_value, list):
+                stone_carats_raw = stone_carats_value
+            else:
+                stone_carats_raw = []
+
+            if isinstance(stone_prices_value, str):
+                stone_prices_raw = json.loads(stone_prices_value) if stone_prices_value else []
+            elif isinstance(stone_prices_value, list):
+                stone_prices_raw = stone_prices_value
+            else:
+                stone_prices_raw = []
 
             # Convert to proper types (ensure floats)
-            stone_carats = [float(c) if c != '' else 0.0 for c in stone_carats_raw]
-            stone_prices = [float(p) if p != '' else 0.0 for p in stone_prices_raw]
+            stone_carats = [float(c) if c not in ('', None) else 0.0 for c in stone_carats_raw]
+            stone_prices = [float(p) if p not in ('', None) else 0.0 for p in stone_prices_raw]
 
         except (json.JSONDecodeError, ValueError, TypeError) as e:
             logger.warning(f"    Variant {variant_id}: Failed to parse stone data: {e}")
-            logger.warning(f"    stone_types_str: {stone_types_str}")
-            logger.warning(f"    stone_carats_str: {stone_carats_str}")
-            logger.warning(f"    stone_prices_str: {stone_prices_str}")
+            logger.warning(f"    stone_types_value: {stone_types_value} (type: {type(stone_types_value)})")
+            logger.warning(f"    stone_carats_value: {stone_carats_value} (type: {type(stone_carats_value)})")
+            logger.warning(f"    stone_prices_value: {stone_prices_value} (type: {type(stone_prices_value)})")
             stone_types = []
             stone_carats = []
             stone_prices = []
