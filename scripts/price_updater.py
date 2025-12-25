@@ -46,7 +46,7 @@ class PriceUpdater:
             'variants_updated': 0,
             'variants_skipped': 0,
             'variants_failed': 0,
-            'variants_with_stones': 0,
+            'variants_stone_price_changed': 0,
             'metafields_updated': 0,
             'metafields_failed': 0,
             'errors': []
@@ -108,7 +108,7 @@ class PriceUpdater:
         logger.info(f"Variants Updated: {self.stats['variants_updated']}")
         logger.info(f"Variants Skipped: {self.stats['variants_skipped']}")
         logger.info(f"Variants Failed: {self.stats['variants_failed']}")
-        logger.info(f"Variants with Stones: {self.stats['variants_with_stones']}")
+        logger.info(f"Variants whose Stone Price Changed: {self.stats['variants_stone_price_changed']}")
         logger.info(f"Metafields Updated: {self.stats['metafields_updated']}")
         logger.info(f"Metafields Failed: {self.stats['metafields_failed']}")
         logger.info(f"Errors: {len(self.stats['errors'])}")
@@ -309,9 +309,10 @@ class PriceUpdater:
 
         # Update price if changed
         if abs(new_price - old_price) >= 0.01:  # Only update if difference is significant
-            # Track if stone price changed
+            # Track if this variant has stones AND price changed
+            # This means stone price is affecting the variant price
             if price_result['stone_cost'] > 0:
-                self.stats['variants_with_stones'] += 1
+                self.stats['variants_stone_price_changed'] += 1
 
             if not dry_run:
                 success = self.client.update_variant_price(variant_id, new_price)
