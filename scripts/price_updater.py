@@ -222,10 +222,18 @@ class PriceUpdater:
         # Parse lists
         try:
             stone_types = json.loads(stone_types_str) if stone_types_str else []
-            stone_carats = json.loads(stone_carats_str) if stone_carats_str else []
-            stone_prices = json.loads(stone_prices_str) if stone_prices_str else []
-        except json.JSONDecodeError as e:
+            stone_carats_raw = json.loads(stone_carats_str) if stone_carats_str else []
+            stone_prices_raw = json.loads(stone_prices_str) if stone_prices_str else []
+
+            # Convert to proper types (ensure floats)
+            stone_carats = [float(c) if c != '' else 0.0 for c in stone_carats_raw]
+            stone_prices = [float(p) if p != '' else 0.0 for p in stone_prices_raw]
+
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
             logger.warning(f"    Variant {variant_id}: Failed to parse stone data: {e}")
+            logger.warning(f"    stone_types_str: {stone_types_str}")
+            logger.warning(f"    stone_carats_str: {stone_carats_str}")
+            logger.warning(f"    stone_prices_str: {stone_prices_str}")
             stone_types = []
             stone_carats = []
             stone_prices = []
