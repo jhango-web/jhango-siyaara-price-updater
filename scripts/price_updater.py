@@ -46,6 +46,7 @@ class PriceUpdater:
             'variants_updated': 0,
             'variants_skipped': 0,
             'variants_failed': 0,
+            'variants_with_stones': 0,
             'metafields_updated': 0,
             'metafields_failed': 0,
             'errors': []
@@ -107,6 +108,7 @@ class PriceUpdater:
         logger.info(f"Variants Updated: {self.stats['variants_updated']}")
         logger.info(f"Variants Skipped: {self.stats['variants_skipped']}")
         logger.info(f"Variants Failed: {self.stats['variants_failed']}")
+        logger.info(f"Variants with Stones: {self.stats['variants_with_stones']}")
         logger.info(f"Metafields Updated: {self.stats['metafields_updated']}")
         logger.info(f"Metafields Failed: {self.stats['metafields_failed']}")
         logger.info(f"Errors: {len(self.stats['errors'])}")
@@ -293,6 +295,10 @@ class PriceUpdater:
         new_price = price_result['total_price']
         old_price = variant_detail['old_price']
         variant_detail['new_price'] = new_price
+
+        # Track variants with stones
+        if price_result['stone_cost'] > 0:
+            self.stats['variants_with_stones'] += 1
 
         # Log price breakdown
         logger.info(f"    Variant {variant_id} ({option1})")
