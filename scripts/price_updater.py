@@ -296,10 +296,6 @@ class PriceUpdater:
         old_price = variant_detail['old_price']
         variant_detail['new_price'] = new_price
 
-        # Track variants with stones
-        if price_result['stone_cost'] > 0:
-            self.stats['variants_with_stones'] += 1
-
         # Log price breakdown
         logger.info(f"    Variant {variant_id} ({option1})")
         logger.info(f"      Metal: ₹{price_result['metal_cost']} "
@@ -313,6 +309,10 @@ class PriceUpdater:
 
         # Update price if changed
         if abs(new_price - old_price) >= 0.01:  # Only update if difference is significant
+            # Track if stone price changed
+            if price_result['stone_cost'] > 0:
+                self.stats['variants_with_stones'] += 1
+
             if not dry_run:
                 success = self.client.update_variant_price(variant_id, new_price)
                 if success:
