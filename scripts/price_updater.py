@@ -296,12 +296,25 @@ class PriceUpdater:
         old_price = variant_detail['old_price']
         variant_detail['new_price'] = new_price
 
+        # Calculate NEW stone cost (rounded like in price_calculator)
+        new_stone_cost = round(price_result['stone_cost'])
+
+        # Calculate OLD stone cost by directly calculating from metafields
+        # Stone cost doesn't depend on gold/silver rate, only on stone_carats * stone_prices_per_carat
+        old_stone_cost = 0
+        num_stones = max(len(stone_carats), len(stone_prices))
+        for i in range(num_stones):
+            if i < len(stone_carats) and i < len(stone_prices):
+                if stone_carats[i] and stone_prices[i]:
+                    old_stone_cost += stone_carats[i] * stone_prices[i]
+        old_stone_cost = round(old_stone_cost)
+
         # Log price breakdown
         logger.info(f"    Variant {variant_id} ({option1})")
         logger.info(f"      Metal: ₹{price_result['metal_cost']} "
                    f"(Weight: {metal_weight}g × Rate: ₹{price_result['breakdown']['metal']['base_rate']}/g × "
                    f"Purity: {price_result['breakdown']['metal']['purity_factor']})")
-        logger.info(f"      Stones: ₹{price_result['stone_cost']}")
+        logger.info(f"      Stones: ₹{price_result['stone_cost']} (Old: ₹{old_stone_cost}, New: ₹{new_stone_cost})")
         logger.info(f"      Making: ₹{price_result['making_charges']}")
         logger.info(f"      Markup: ₹{price_result['markup_cost']} ({self.calculator.markup_percentage}%)")
         logger.info(f"      GST: ₹{price_result['gst_cost']} ({self.calculator.gst_percentage}%)")
@@ -309,9 +322,8 @@ class PriceUpdater:
 
         # Update price if changed
         if abs(new_price - old_price) >= 0.01:  # Only update if difference is significant
-            # Track if this variant has stones AND price changed
-            # This means stone price is affecting the variant price
-            if price_result['stone_cost'] > 0:
+            # Track if STONE PRICE changed (compare old vs new stone cost)
+            if old_stone_cost != new_stone_cost:
                 self.stats['variants_stone_price_changed'] += 1
 
             if not dry_run:
