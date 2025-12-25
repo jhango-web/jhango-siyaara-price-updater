@@ -61,8 +61,12 @@ service-account*.json
 *access-token*
 *access_token*
 *shopify-token*
-*goldapi*
+*goldapi-key*
+*goldapi_key*
 *shpat_*
+
+# But allow goldapi_client.py script
+!scripts/goldapi_client.py
 
 # OS
 .DS_Store
