@@ -11,8 +11,13 @@ import json
 import logging
 from datetime import datetime
 
-# Add current directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) or '.')
+# Add current directory to Python path for local module imports
+script_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
+if script_dir and script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+# Also ensure current directory is in path
+if '.' not in sys.path:
+    sys.path.insert(0, '.')
 
 from goldapi_client import GoldAPIClient
 from shopify_client import ShopifyClient
