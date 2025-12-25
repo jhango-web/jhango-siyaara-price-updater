@@ -110,7 +110,42 @@ The system calculates prices using the exact same formula as your product listin
 
 ### Schedule
 
-Automatic updates run **daily at 9:00 AM IST (3:30 AM UTC)**.
+Automatic updates run **daily at 12:05 AM IST (6:35 PM UTC previous day)**.
+
+#### Changing the Schedule
+
+To change when automatic updates run, edit `.github/workflows/auto-price-update.yml`:
+
+```yaml
+on:
+  schedule:
+    - cron: '35 18 * * *'  # Minutes Hour Day Month DayOfWeek (UTC time)
+```
+
+**Cron Format**: `'MINUTE HOUR DAY MONTH DAYOFWEEK'` (all times in UTC)
+
+**Common Schedules (IST → UTC conversion)**:
+
+| IST Time | UTC Time | Cron Expression | Description |
+|----------|----------|-----------------|-------------|
+| 12:05 AM | 6:35 PM (prev day) | `'35 18 * * *'` | After midnight (current) |
+| 6:00 AM | 12:30 AM | `'30 0 * * *'` | Early morning |
+| 9:00 AM | 3:30 AM | `'30 3 * * *'` | Morning |
+| 12:00 PM | 6:30 AM | `'30 6 * * *'` | Noon |
+| 6:00 PM | 12:30 PM | `'30 12 * * *'` | Evening |
+| 11:00 PM | 5:30 PM | `'30 17 * * *'` | Late night |
+
+**Examples**:
+- Every 6 hours: `'0 */6 * * *'`
+- Twice daily (9 AM & 9 PM IST): Use two cron entries:
+  ```yaml
+  schedule:
+    - cron: '30 3 * * *'   # 9 AM IST
+    - cron: '30 15 * * *'  # 9 PM IST
+  ```
+- Weekdays only at 9 AM IST: `'30 3 * * 1-5'`
+
+**Note**: IST is UTC+5:30, so subtract 5 hours 30 minutes to get UTC time for cron.
 
 ### Process Flow
 

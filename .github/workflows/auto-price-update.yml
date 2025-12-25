@@ -1,9 +1,9 @@
 name: Automatic Price Update
 
-# Runs daily at 9:00 AM IST (3:30 AM UTC)
+# Runs daily at 12:05 AM IST (6:35 PM UTC previous day)
 on:
   schedule:
-    - cron: '30 3 * * *'
+    - cron: '35 18 * * *'
 
   # Allow manual triggering
   workflow_dispatch:
