@@ -70,6 +70,7 @@ jobs:
 
       - name: Run manual price updater
         run: |
+          export PYTHONPATH="${PYTHONPATH}:${PWD}/scripts"
           cd scripts
 
           # Build command with required arguments

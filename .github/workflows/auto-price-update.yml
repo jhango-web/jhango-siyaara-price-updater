@@ -40,6 +40,7 @@ jobs:
           SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
           CURRENCY: ${{ vars.CURRENCY || 'INR' }}
         run: |
+          export PYTHONPATH="${PYTHONPATH}:${PWD}/scripts"
           cd scripts
           python auto_price_updater.py
 
