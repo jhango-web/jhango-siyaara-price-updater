@@ -11,6 +11,9 @@ import json
 import logging
 from datetime import datetime
 
+# Add current directory to Python path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from goldapi_client import GoldAPIClient
 from shopify_client import ShopifyClient
 from price_calculator import PriceCalculator
