@@ -36,6 +36,8 @@ class ShopifyClient:
             'X-Shopify-Access-Token': self.access_token,
             'Content-Type': 'application/json'
         }
+        # Rate limiting: Shopify allows 2 requests/second for REST API
+        self.rate_limit_delay = 0.5  # 500ms between requests
 
     def get_theme_settings(self, theme_id: str) -> Dict[str, Any]:
         """
@@ -137,6 +139,56 @@ class ShopifyClient:
             logger.error(f"Failed to update theme settings: {e}")
             return False
 
+    def _make_request_with_retry(self, method: str, url: str, max_retries: int = 3, **kwargs) -> requests.Response:
+        """
+        Make HTTP request with exponential backoff retry for rate limiting.
+
+        Args:
+            method: HTTP method (GET, POST, PUT, etc.)
+            url: Request URL
+            max_retries: Maximum number of retries
+            **kwargs: Additional arguments for requests
+
+        Returns:
+            Response object
+
+        Raises:
+            Exception if all retries fail
+        """
+        for attempt in range(max_retries):
+            try:
+                # Rate limiting delay before each request
+                time.sleep(self.rate_limit_delay)
+
+                response = requests.request(method, url, **kwargs)
+
+                # Handle rate limiting
+                if response.status_code == 429:
+                    retry_after = int(response.headers.get('Retry-After', 2))
+                    logger.warning(f"Rate limit hit (429). Waiting {retry_after}s before retry {attempt + 1}/{max_retries}")
+                    time.sleep(retry_after)
+                    continue
+
+                response.raise_for_status()
+                return response
+
+            except requests.exceptions.HTTPError as e:
+                if attempt < max_retries - 1 and e.response.status_code == 429:
+                    retry_after = int(e.response.headers.get('Retry-After', 2))
+                    logger.warning(f"Rate limit error. Waiting {retry_after}s before retry {attempt + 1}/{max_retries}")
+                    time.sleep(retry_after)
+                    continue
+                raise
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Request failed: {e}. Retrying in {wait_time}s ({attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                raise
+
+        raise Exception(f"Failed after {max_retries} retries")
+
     def get_products_with_metafields(self, limit: int = 250) -> List[Dict[str, Any]]:
         """
         Fetch all products that have jhango.gold_rate and jhango.silver_rate metafields.
@@ -162,8 +214,9 @@ class ShopifyClient:
                 if page_info:
                     params['page_info'] = page_info
 
-                response = requests.get(url, headers=self.headers, params=params, timeout=30)
-                response.raise_for_status()
+                response = self._make_request_with_retry(
+                    'GET', url, headers=self.headers, params=params, timeout=30
+                )
 
                 data = response.json()
                 products = data.get('products', [])
@@ -201,7 +254,6 @@ class ShopifyClient:
                             page_info = link.split('page_info=')[1].split('>')[0]
                             break
                     page += 1
-                    time.sleep(0.5)  # Rate limiting
                 else:
                     break
 
@@ -224,8 +276,7 @@ class ShopifyClient:
         """
         try:
             url = f"{self.base_url}/products/{product_id}/metafields.json"
-            response = requests.get(url, headers=self.headers, timeout=30)
-            response.raise_for_status()
+            response = self._make_request_with_retry('GET', url, headers=self.headers, timeout=30)
 
             data = response.json()
             return data.get('metafields', [])
@@ -246,8 +297,7 @@ class ShopifyClient:
         """
         try:
             url = f"{self.base_url}/variants/{variant_id}/metafields.json"
-            response = requests.get(url, headers=self.headers, timeout=30)
-            response.raise_for_status()
+            response = self._make_request_with_retry('GET', url, headers=self.headers, timeout=30)
 
             data = response.json()
             return data.get('metafields', [])
@@ -291,7 +341,7 @@ class ShopifyClient:
                         'type': value_type
                     }
                 }
-                response = requests.put(url, json=data, headers=self.headers, timeout=30)
+                response = self._make_request_with_retry('PUT', url, json=data, headers=self.headers, timeout=30)
             else:
                 # Create new metafield
                 url = f"{self.base_url}/products/{product_id}/metafields.json"
@@ -303,9 +353,8 @@ class ShopifyClient:
                         'type': value_type
                     }
                 }
-                response = requests.post(url, json=data, headers=self.headers, timeout=30)
+                response = self._make_request_with_retry('POST', url, json=data, headers=self.headers, timeout=30)
 
-            response.raise_for_status()
             return True
 
         except Exception as e:
@@ -332,8 +381,7 @@ class ShopifyClient:
                 }
             }
 
-            response = requests.put(url, json=data, headers=self.headers, timeout=30)
-            response.raise_for_status()
+            response = self._make_request_with_retry('PUT', url, json=data, headers=self.headers, timeout=30)
 
             return True
 

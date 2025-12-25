@@ -199,11 +199,25 @@ class PriceUpdater:
         # Fetch variant metafields
         variant_metafields = self.client.get_variant_metafields(variant_id)
 
-        # Extract required metafield values
-        metal_weight = self._get_metafield_value(variant_metafields, 'custom', 'metal_weight', 0.0, float)
-        stone_types_str = self._get_metafield_value(variant_metafields, 'custom', 'stone_types', '[]', str)
-        stone_carats_str = self._get_metafield_value(variant_metafields, 'custom', 'stone_carats', '[]', str)
-        stone_prices_str = self._get_metafield_value(variant_metafields, 'custom', 'stone_prices_per_carat', '[]', str)
+        # Get product metafields for fallback
+        product_metafields = product.get('metafields', [])
+
+        # Extract required metafield values with hierarchy (variant first, then product)
+        # For metal_weight, check variant first, then fall back to product
+        metal_weight = self._get_metafield_value_with_fallback(
+            variant_metafields, product_metafields, 'custom', 'metal_weight', 0.0, float
+        )
+
+        # For stone fields, check variant first, then fall back to product
+        stone_types_str = self._get_metafield_value_with_fallback(
+            variant_metafields, product_metafields, 'custom', 'stone_types', '[]', str
+        )
+        stone_carats_str = self._get_metafield_value_with_fallback(
+            variant_metafields, product_metafields, 'custom', 'stone_carats', '[]', str
+        )
+        stone_prices_str = self._get_metafield_value_with_fallback(
+            variant_metafields, product_metafields, 'custom', 'stone_prices_per_carat', '[]', str
+        )
 
         # Parse lists
         try:
@@ -288,6 +302,42 @@ class PriceUpdater:
                     return value_type(mf['value'])
                 except (ValueError, TypeError):
                     return default
+        return default
+
+    @staticmethod
+    def _get_metafield_value_with_fallback(variant_metafields: List[Dict], product_metafields: List[Dict],
+                                          namespace: str, key: str, default: Any, value_type: type) -> Any:
+        """
+        Extract metafield value with hierarchy: check variant first, then product.
+
+        Args:
+            variant_metafields: Variant metafields list
+            product_metafields: Product metafields list
+            namespace: Metafield namespace
+            key: Metafield key
+            default: Default value if not found
+            value_type: Type to convert value to
+
+        Returns:
+            Metafield value from variant if exists, otherwise from product, otherwise default
+        """
+        # First, check variant metafields
+        for mf in variant_metafields:
+            if mf['namespace'] == namespace and mf['key'] == key:
+                try:
+                    return value_type(mf['value'])
+                except (ValueError, TypeError):
+                    pass  # Continue to try product metafields
+
+        # If not found in variant, check product metafields
+        for mf in product_metafields:
+            if mf['namespace'] == namespace and mf['key'] == key:
+                try:
+                    return value_type(mf['value'])
+                except (ValueError, TypeError):
+                    return default
+
+        # If not found in either, return default
         return default
 
 
