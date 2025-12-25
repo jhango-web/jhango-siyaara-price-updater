@@ -119,19 +119,33 @@ class PriceCalculator:
         metal_cost = metal_weight * effective_rate
 
         # Calculate stone costs
+        # Use stone_carats as the main driver since that's what we need for calculation
+        # Even if stone_types is empty, calculate based on carats and prices
         total_stone_cost = 0
         stone_details = []
 
-        for i in range(len(stone_types)):
+        # Determine how many stones to process based on carats (primary) and prices
+        num_stones = max(len(stone_carats), len(stone_prices_per_carat))
+
+        for i in range(num_stones):
             if i < len(stone_carats) and i < len(stone_prices_per_carat):
-                cost = stone_carats[i] * stone_prices_per_carat[i]
-                total_stone_cost += cost
-                stone_details.append({
-                    'type': stone_types[i],
-                    'carat': stone_carats[i],
-                    'price_per_carat': stone_prices_per_carat[i],
-                    'cost': cost
-                })
+                carat = stone_carats[i]
+                price = stone_prices_per_carat[i]
+
+                # Only calculate if both carat and price are valid
+                if carat and price:
+                    cost = carat * price
+                    total_stone_cost += cost
+
+                    # Get stone type if available, otherwise use generic name
+                    stone_type = stone_types[i] if i < len(stone_types) else f'stone_{i+1}'
+
+                    stone_details.append({
+                        'type': stone_type,
+                        'carat': carat,
+                        'price_per_carat': price,
+                        'cost': cost
+                    })
 
         # Use theme settings and hardcoded values
         making_charges = self.making_charges
