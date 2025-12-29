@@ -66,14 +66,12 @@ class ShopifyClient:
 
             theme_settings = {
                 'making_charges': float(current_settings.get('making_charges', 0)),
-                'markup_percentage': float(current_settings.get('markup_percentage', 0)),
-                'gst_percentage': float(current_settings.get('gst_percentage', 3))
+                'markup_percentage': float(current_settings.get('markup_percentage', 0))
             }
 
             logger.info(f"Successfully fetched theme settings")
-            logger.info(f"  Making Charges: ₹{theme_settings['making_charges']}")
+            logger.info(f"  Making Charges: {theme_settings['making_charges']}% of gold cost")
             logger.info(f"  Markup Percentage: {theme_settings['markup_percentage']}%")
-            logger.info(f"  GST Percentage: {theme_settings['gst_percentage']}%")
 
             return theme_settings
 
@@ -82,8 +80,7 @@ class ShopifyClient:
             logger.warning("Using default theme settings")
             return {
                 'making_charges': 0,
-                'markup_percentage': 0,
-                'gst_percentage': 3
+                'markup_percentage': 0
             }
 
     def update_theme_settings(self, theme_id: str, gold_rate: float, silver_rate: float) -> bool:

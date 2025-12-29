@@ -73,7 +73,7 @@ class PriceUpdater:
         logger.info("="*80)
         logger.info(f"Gold Rate: ₹{gold_rate}/g")
         logger.info(f"Silver Rate: ₹{silver_rate}/g")
-        logger.info(f"Making Charges: ₹{self.calculator.making_charges}")
+        logger.info(f"Making Charges: {self.calculator.making_charges_percentage}% of gold cost")
         logger.info(f"Markup Percentage: {self.calculator.markup_percentage}%")
         logger.info(f"Dry Run: {dry_run}")
         logger.info("="*80)
