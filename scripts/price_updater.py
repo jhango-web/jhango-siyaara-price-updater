@@ -318,7 +318,6 @@ class PriceUpdater:
         logger.info(f"      Stones: ₹{price_result['stone_cost']} (Old: ₹{old_stone_cost}, New: ₹{new_stone_cost})")
         logger.info(f"      Making: ₹{price_result['making_charges']}")
         logger.info(f"      Markup: ₹{price_result['markup_cost']} ({self.calculator.markup_percentage}%)")
-        logger.info(f"      GST: ₹{price_result['gst_cost']} ({self.calculator.gst_percentage}%)")
         logger.info(f"      Old Price: ₹{old_price} → New Price: ₹{new_price}")
 
         # Update price if changed
