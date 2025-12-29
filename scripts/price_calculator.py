@@ -12,17 +12,17 @@ from typing import Dict, List, Any, Optional
 class PriceCalculator:
     """Calculate product prices based on metafields and theme settings."""
 
-    def __init__(self, making_charges: float, markup_percentage: float):
+    def __init__(self, making_charges_percentage: float, markup_percentage: float):
         """
         Initialize with theme settings.
 
         Args:
-            making_charges: Making charges from theme settings (in rupees)
+            making_charges_percentage: Making charges percentage from theme settings (applied to gold cost)
             markup_percentage: Markup percentage from theme settings
 
         Note: laser_cost and packaging_cost are always set to 0 as per requirements
         """
-        self.making_charges = float(making_charges)
+        self.making_charges_percentage = float(making_charges_percentage)
         self.markup_percentage = float(markup_percentage)
         self.laser_cost = 0.0  # Always 0 as per requirements
         self.packaging_cost = 0.0  # Always 0 as per requirements
@@ -118,6 +118,14 @@ class PriceCalculator:
         effective_rate = base_rate * metal_info['purity_factor']
         metal_cost = metal_weight * effective_rate
 
+        # Calculate making charges as percentage of gold cost (only for gold)
+        if metal_info['type'] == 'gold':
+            gold_cost = metal_weight * metal_info['purity_factor'] * gold_rate
+            making_charges = gold_cost * (self.making_charges_percentage / 100)
+        else:
+            # For silver, making charges is 0
+            making_charges = 0
+
         # Calculate stone costs
         # Use stone_carats as the main driver since that's what we need for calculation
         # Even if stone_types is empty, calculate based on carats and prices
@@ -148,7 +156,6 @@ class PriceCalculator:
                     })
 
         # Use theme settings and hardcoded values
-        making_charges = self.making_charges
         laser_cost = self.laser_cost  # Always 0
         packaging_cost = self.packaging_cost  # Always 0
         markup_percentage = self.markup_percentage
