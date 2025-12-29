@@ -26,7 +26,6 @@ class PriceCalculator:
         self.markup_percentage = float(markup_percentage)
         self.laser_cost = 0.0  # Always 0 as per requirements
         self.packaging_cost = 0.0  # Always 0 as per requirements
-        self.gst_percentage = 3.0  # Standard GST percentage
 
     @staticmethod
     def parse_metal_from_option(option_value: str) -> Dict[str, Any]:
@@ -102,8 +101,7 @@ class PriceCalculator:
             'laser_cost': float,
             'packaging_cost': float,
             'markup_cost': float,
-            'gst_cost': float,
-            'total_price': float (includes GST),
+            'total_price': float,
             'breakdown': {...}
         }
         """
@@ -159,7 +157,6 @@ class PriceCalculator:
         laser_cost = self.laser_cost  # Always 0
         packaging_cost = self.packaging_cost  # Always 0
         markup_percentage = self.markup_percentage
-        gst_percentage = self.gst_percentage
 
         # Calculate subtotal
         subtotal = metal_cost + total_stone_cost + making_charges + laser_cost + packaging_cost
@@ -167,14 +164,8 @@ class PriceCalculator:
         # Calculate markup
         markup_cost = subtotal * (markup_percentage / 100)
 
-        # Calculate base price (after markup, before GST)
-        base_price = subtotal + markup_cost
-
-        # Calculate GST
-        gst_cost = base_price * (gst_percentage / 100)
-
-        # Calculate final price (including GST)
-        final_price = round(base_price + gst_cost)
+        # Calculate final price (tax-inclusive)
+        final_price = round(subtotal + markup_cost)
 
         # Round to nearest integer like the Liquid snippet (Math.round)
         return {
@@ -184,7 +175,6 @@ class PriceCalculator:
             'laser_cost': round(laser_cost),
             'packaging_cost': round(packaging_cost),
             'markup_cost': round(markup_cost),
-            'gst_cost': round(gst_cost),
             'total_price': final_price,
             'breakdown': {
                 'metal': {
@@ -202,9 +192,7 @@ class PriceCalculator:
                     'laser': round(laser_cost),
                     'packaging': round(packaging_cost),
                     'markup_percentage': markup_percentage,
-                    'markup_cost': round(markup_cost),
-                    'gst_percentage': gst_percentage,
-                    'gst_cost': round(gst_cost)
+                    'markup_cost': round(markup_cost)
                 }
             }
         }
